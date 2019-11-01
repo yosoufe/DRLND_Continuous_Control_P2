@@ -91,7 +91,7 @@ class DDPG_Agent:
     DDPG Algorithm
     """
 
-    def __init__(self, state_size, action_size, num_agents=1, seed=0, tau=1e-3):
+    def __init__(self, state_size, action_size, num_agents=1, seed=0, tau=1e-3, batch_size=512):
         """
         TODO:
         Initialize the 4 networks
@@ -105,6 +105,8 @@ class DDPG_Agent:
             action_size:
             num_agents:
             seed:
+            tau:
+
         """
         self.tau = tau
         self.state_size = state_size
@@ -114,7 +116,8 @@ class DDPG_Agent:
         self.critic_local = Critic(state_size, action_size, seed).to(device)
         self.critic_target = Critic(state_size, action_size, seed).to(device)
         self.soft_update(1.0)
-        self.replayBuffer = ReplayBuffer(batch_size=512, buffer_size=100000, seed=seed)
+        self.batch_size = batch_size
+        self.replayBuffer = ReplayBuffer(batch_size=batch_size, buffer_size=100000, seed=seed)
         self.num_agents = num_agents
         self.noise_process = OUNoise(action_size * num_agents, seed, theta=0.05)
 
@@ -130,7 +133,7 @@ class DDPG_Agent:
         Returns:
             actions: numpy arrays of size (num_agents, action_size)
         """
-        state = torch.from_numpy(state).float().view(self.num_agents,self.state_size).to(device)
+        state = torch.from_numpy(state).float().view(self.num_agents, self.state_size).to(device)
         self.actor_local.eval()
         with torch.no_grad():
             actions = self.actor_local(state).cpu().numpy()
@@ -158,9 +161,12 @@ class DDPG_Agent:
             done:
 
         Returns:
-
+            None
         """
-        pass
+        self.replayBuffer.push(state, action, reward, next_state, done)
+        if len(self.replayBuffer) > self.batch_size:
+            states, actions, rewards, next_states, dones = self.replayBuffer.sample()
+            y = 
 
     def reset(self):
         pass
@@ -199,17 +205,18 @@ class ReplayBuffer:
         Add an experience to the buffer.
 
         Args:
-            state: 1D numpy array
-            action: 1D numpy array
-            reward: 1D numpy array
-            next_action: 1D numpy array
-            done (boolean): boolean
+            state: 2D numpy array in size of number of agents by number of states
+            action: 2D numpy array in size of number of agents by number of actions
+            reward: list in size of number of agents
+            next_action: same as action
+            done (boolean): list in size of number of agents
 
         Returns:
             None
         """
-        ex = self.Experience(state, action, reward, next_action, done)
-        self.buffer.append(ex)
+        for i in range(state.shape[0]):
+            ex = self.Experience(state[i, :], action[i, :], reward[i], next_action[i, :], done[i])
+            self.buffer.append(ex)
 
     def sample(self):
         """
@@ -258,7 +265,7 @@ class OUNoise:
     def sample(self):
         """Update internal state and return it as a noise sample."""
         x = self.state
-        dx = self.theta * (self.mu - x) + self.sigma * np.array([random.uniform(-1.0,1.0) for i in range(len(x))])
+        dx = self.theta * (self.mu - x) + self.sigma * np.array([random.uniform(-1.0, 1.0) for i in range(len(x))])
         self.state = x + dx
         return self.state
 
@@ -275,12 +282,13 @@ class PlotTool:
             plotter.update_plot(np.random.randn(1,5))
             sleep(0.001)
     """
+
     def __init__(self, number_agents):
         self.number_agents = number_agents
         self.rewards = np.empty((number_agents, 1), dtype=np.float)
         self.average = np.empty((1, 1), dtype=np.float)
         self.initialized = False
-        self.fig = plt.figure(figsize=(8,8))
+        self.fig = plt.figure(figsize=(8, 8))
         self.ax = self.fig.add_subplot(1, 1, 1)
         self.ax.autoscale()
         self.average_line = Line2D([0], [0], linestyle='-')
@@ -299,11 +307,11 @@ class PlotTool:
         newRewards = newRewards.reshape(1, self.number_agents)
         if not self.initialized:
             self.rewards = newRewards
-            self.average = np.mean(self.rewards, axis=1).reshape((1,1))
+            self.average = np.mean(self.rewards, axis=1).reshape((1, 1))
             self.initialized = True
         else:
             self.rewards = np.concatenate((self.rewards, newRewards), axis=0)
-            self.average = np.concatenate((self.average, np.mean(newRewards).reshape((1,1)) ), axis=0)
+            self.average = np.concatenate((self.average, np.mean(newRewards).reshape((1, 1))), axis=0)
 
             for li, line in enumerate(self.lines):
                 line.set_xdata(np.arange(self.rewards.shape[0]))
