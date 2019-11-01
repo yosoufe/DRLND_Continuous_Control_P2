@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import torch.optim as optim
 from torch.nn import functional as F
 
 from collections import deque, namedtuple
@@ -91,7 +92,16 @@ class DDPG_Agent:
     DDPG Algorithm
     """
 
-    def __init__(self, state_size, action_size, num_agents=1, seed=0, tau=1e-3, batch_size=512):
+    def __init__(self,
+                 state_size,
+                 action_size,
+                 num_agents=1,
+                 seed=0,
+                 tau=1e-3,
+                 batch_size=512,
+                 discount_factor = 0.99,
+                 actor_learning_rate=1e-4,
+                 critic_learning_rate=1e-3):
         """
         TODO:
         Initialize the 4 networks
@@ -106,6 +116,8 @@ class DDPG_Agent:
             num_agents:
             seed:
             tau:
+            batch_size:
+            discount_factor:
 
         """
         self.tau = tau
@@ -120,6 +132,10 @@ class DDPG_Agent:
         self.replayBuffer = ReplayBuffer(batch_size=batch_size, buffer_size=100000, seed=seed)
         self.num_agents = num_agents
         self.noise_process = OUNoise(action_size * num_agents, seed, theta=0.05)
+        self.discount_factor = discount_factor
+        self.actor_opt = optim.Adam(self.actor_local.parameters(), lr=actor_learning_rate)
+        self.critic_opt = optim.Adam(self.critic_local.parameters(), lr=critic_learning_rate)
+        self.criterion = nn.MSELoss()
 
     def act(self, state, add_noise=True):
         """
@@ -166,13 +182,25 @@ class DDPG_Agent:
         self.replayBuffer.push(state, action, reward, next_state, done)
         if len(self.replayBuffer) > self.batch_size:
             states, actions, rewards, next_states, dones = self.replayBuffer.sample()
-            y = 
+            next_actions = self.actor_local(next_states)
+            y = rewards + \
+                self.discount_factor * self.critic_target( next_states, next_actions.detach() )
+            Q = self.critic_local(states, actions)
+            critic_loss = self.criterion(Q, y)
+            self.critic_opt.zero_grad()
+            critic_loss.backward()
+            self.critic_opt.step()
+
+            action_predictions = self.actor_local(states)
+            actor_loss = -self.critic_local(states,action_predictions).mean()
+            self.actor_opt.zero_grad()
+            actor_loss.backward()
+            self.actor_opt.step()
+
+            self.soft_update(self.tau)
 
     def reset(self):
-        pass
-
-    def learn(self):
-        pass
+        self.noise_process.reset()
 
     def soft_update(self, tau):
         for target_param, local_param in zip(self.actor_target.parameters(), self.actor_local.parameters()):
@@ -200,7 +228,7 @@ class ReplayBuffer:
         self.seed = random.seed(seed)
         self.batch_size = batch_size
 
-    def push(self, state, action, reward, next_action, done):
+    def push(self, state, action, reward, next_states, done):
         """
         Add an experience to the buffer.
 
@@ -208,25 +236,26 @@ class ReplayBuffer:
             state: 2D numpy array in size of number of agents by number of states
             action: 2D numpy array in size of number of agents by number of actions
             reward: list in size of number of agents
-            next_action: same as action
+            next_states: same as state
             done (boolean): list in size of number of agents
 
         Returns:
             None
         """
         for i in range(state.shape[0]):
-            ex = self.Experience(state[i, :], action[i, :], reward[i], next_action[i, :], done[i])
+            ex = self.Experience(state[i, :], action[i, :], reward[i], next_states[i, :], done[i])
             self.buffer.append(ex)
 
     def sample(self):
         """
+        sample from the buffer
 
         Returns:
-            state: tensor
-            action: tensor
-            reward: tensor
-            next_action: tensor
-            done (boolean): tensor
+            state: tensor in size (batch_size, number of states)
+            action: tensor in size (batch_size, number of actions)
+            reward: tensor in size (batch_size, 1)
+            next_state: same as state
+            done (boolean): tensor in size (batch_size, number of states)
         """
         ex = random.sample(self.buffer, k=self.batch_size)
 
