@@ -113,16 +113,16 @@ class PlotTool:
         from tools import PlotTool
         from time import sleep
         %matplotlib notebook
-        plotter = PlotTool(number_agents=5)
+        plotter = PlotTool(number_of_lines=5)
 
         for i in range(3000):
             plotter.update_plot(np.random.randn(1,5))
             sleep(0.001)
     """
 
-    def __init__(self, number_agents):
-        self.number_agents = number_agents
-        self.rewards = np.empty((number_agents, 1), dtype=np.float)
+    def __init__(self, number_of_lines, desc, number_of_actions=0):
+        self.number_of_lines = number_of_lines
+        self.rewards = np.empty((number_of_lines, 1), dtype=np.float)
         self.average = np.empty((1, 1), dtype=np.float)
         self.initialized = False
         self.fig = plt.figure(figsize=(8, 16))
@@ -130,21 +130,39 @@ class PlotTool:
         self.axAve = self.fig.add_subplot(2, 1, 2)
         self.axRews.autoscale()
         self.axAve.autoscale()
+        self.actions = None
+        self.desc = desc
+        if number_of_actions:
+            self.axRews = self.fig.add_subplot(3, 1, 1)
+            self.axAve = self.fig.add_subplot(3, 1, 2)
+            self.actions = self.fig.add_subplot(3, 1, 3)
+            self.axRews.autoscale()
+            self.axAve.autoscale()
+            self.actions.autoscale()
 
-        self.lines = [Line2D([0], [0], linestyle='--') for _ in range(number_agents)]
+        self.lines = [Line2D([0], [0], linestyle='-') for _ in range(number_of_lines)]
         for i, line in enumerate(self.lines):
             self.axRews.add_line(line)
             line.set_color((random.random(), random.random(), random.random()))
-            line.set_label('A{}'.format(i))
-        assert len(self.lines) == number_agents
+            line.set_label('A{}{}'.format(self.desc,i))
+        if number_of_actions:
+            self.lines = [Line2D([0], [0], linestyle='-') for _ in range(number_of_actions)]
+            for i, line in enumerate(self.lines):
+                self.actions.add_line(line)
+                line.set_color((random.random(), random.random(), random.random()))
+                line.set_label('A{}{}'.format(self.desc,i))
+        assert len(self.lines) == number_of_lines
 
         self.average_line = Line2D([0], [0], linestyle='-')
-        self.average_line.set_label('Ave')
+        self.average_line.set_label('Ave{}'.format(self.desc))
         self.average_line.set_color((0, 0, 0))
         self.axAve.add_line(self.average_line)
 
-    def update_plot(self, newRewards):
-        newRewards = newRewards.reshape(1, self.number_agents)
+        self.axRews.legend(bbox_to_anchor=(.99, 1), loc='upper left', ncol=1)
+        self.axAve.legend(bbox_to_anchor=(.99, 1), loc='upper left', ncol=1)
+
+    def push_date(self, newRewards):
+        newRewards = newRewards.reshape(1, self.number_of_lines)
         if not self.initialized:
             self.rewards = newRewards
             self.average = np.mean(self.rewards, axis=1).reshape((1, 1))
@@ -159,10 +177,10 @@ class PlotTool:
             self.average_line.set_xdata(np.arange(self.average.shape[0]))
             self.average_line.set_ydata(self.average)
 
-            self.axRews.legend(bbox_to_anchor=(.99, 1), loc='upper left', ncol=1)
-            self.axRews.relim()
-            self.axRews.autoscale_view()
-            self.axAve.legend(bbox_to_anchor=(.99, 1), loc='upper left', ncol=1)
-            self.axAve.relim()
-            self.axAve.autoscale_view()
-            self.fig.canvas.draw()
+    def draw(self):
+        self.axRews.relim()
+        self.axRews.autoscale_view()
+        self.axAve.relim()
+        self.axAve.autoscale_view()
+        self.fig.canvas.draw()
+

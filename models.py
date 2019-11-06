@@ -18,11 +18,11 @@ class Actor(nn.Module):
         """
         super(Actor, self).__init__()
         self.seed = torch.manual_seed(seed)
-        self.fc1 = nn.Linear(state_size, 64)
-        self.fc2 = nn.Linear(64, 128)
-        self.fc3 = nn.Linear(128, 64)
+        self.fc1 = nn.Linear(state_size, 32)
+        self.fc2 = nn.Linear(32, 64)
+        self.fc3 = nn.Linear(64, 64)
         self.fc4 = nn.Linear(64, action_size)
-        self.tanh = nn.Tanh()
+        # self.tanh = nn.Tanh()
 
     def forward(self, state):
         """
@@ -36,7 +36,9 @@ class Actor(nn.Module):
         x = F.relu(self.fc1(state))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
-        return self.tanh(self.fc4(x))
+        # return self.tanh(self.fc4(x))
+        return torch.tanh(self.fc4(x))
+
 
 
 class Critic(nn.Module):
@@ -54,11 +56,11 @@ class Critic(nn.Module):
         """
         super(Critic, self).__init__()
         self.seed = torch.manual_seed(seed)
-        self.fcState = nn.Linear(state_size, 128)
-        self.fcAction = nn.Linear(action_size, 32)
-        self.fc2 = nn.Linear(128+32, 256)
-        self.fc3 = nn.Linear(256, 64)
-        self.fc4 = nn.Linear(64, 1)
+        self.fcState = nn.Linear(state_size, 32)
+        self.fcAction = nn.Linear(action_size, 16)
+        self.fc2 = nn.Linear(32+16, 128)
+        self.fc3 = nn.Linear(128, 32)
+        self.fc4 = nn.Linear(32, 1)
 
     def forward(self, state, action):
         """
@@ -100,3 +102,4 @@ class Critic2(nn.Module):
 
 class ActorCritic(nn.Module):
     def __init__(self, state_size, action_size, seed):
+        pass

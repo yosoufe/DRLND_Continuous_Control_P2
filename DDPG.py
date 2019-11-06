@@ -54,14 +54,14 @@ class DDPG_Agent:
         self.batch_size = batch_size
         self.replayBuffer = ReplayBuffer(batch_size=batch_size, buffer_size=500000, seed=seed, device=device)
         self.num_agents = num_agents
-        self.noise_process = OUNoise(action_size * num_agents, seed, max_sigma=0.5, min_sigma=0.01, decay_period=1000)
+        self.noise_process = OUNoise(action_size * num_agents, seed, max_sigma=0.1, min_sigma=0.01, decay_period=10000*300)
         self.discount_factor = discount_factor
         self.actor_opt = optim.Adam(self.actor_local.parameters(), lr=actor_learning_rate)
         self.critic_opt = optim.Adam(self.critic_local.parameters(), lr=critic_learning_rate)
         self.critic2_opt = optim.Adam(self.critic2_local.parameters(), lr=critic_learning_rate)
         self.critic_criterion = nn.MSELoss()
+        self.critic2_criterion = nn.MSELoss()
         self.device = device
-        self.st = 0
         for model in [self.actor_local,
                       self.actor_target,
                       self.critic_local,
@@ -80,18 +80,20 @@ class DDPG_Agent:
             add_noise:
 
         Returns:
-            actions: numpy arrays of size (num_agents, action_size)
+            actions_with_noise: numpy arrays of size (num_agents, action_size)
+            actions_without_noise: numpy arrays of size (num_agents, action_size)
         """
         state = torch.from_numpy(state).float().view(self.num_agents, self.state_size).to(self.device)
         self.actor_local.eval()
+        actions_with_noise = None
+        actions_without_noise = None
         with torch.no_grad():
             actions = self.actor_local(state)
-            actions = actions.cpu().numpy()
-            # print(actions[0])
+            actions_without_noise = actions.cpu().numpy()
         self.actor_local.train()
         if add_noise:
-            actions += self.noise_process.sample().reshape(self.num_agents, self.action_size)
-        return actions
+            actions_with_noise = actions_without_noise + self.noise_process.sample().reshape(self.num_agents, self.action_size)
+        return actions_with_noise, actions_without_noise
 
     def step(self, state, action, reward, next_state, done):
         """
@@ -132,17 +134,18 @@ class DDPG_Agent:
         """
         # Update Critic
         next_actions = self.actor_target(next_states)
-        # value = (self.critic_target(next_states, next_actions).detach() +
-        #          self.critic2_target(next_states, next_actions).detach()) / 2.0
-        value = torch.min(self.critic_target(next_states, next_actions).detach(),
-                          self.critic2_target(next_states, next_actions).detach())
+        # value = self.critic_target(next_states, next_actions).detach()
+        value = (self.critic_target(next_states, next_actions).detach() +
+                 self.critic2_target(next_states, next_actions).detach()) / 2.0
+        # value = torch.min(self.critic_target(next_states, next_actions).detach(),
+        #                   self.critic2_target(next_states, next_actions).detach())
         y = rewards + self.discount_factor * value
 
         Q = self.critic_local(states, actions)
         critic_loss = self.critic_criterion(Q, y)
 
         Q2 = self.critic2_local(states, actions)
-        critic2_loss = self.critic_criterion(Q2, y)
+        critic2_loss = self.critic2_criterion(Q2, y)
 
         # Update Actor
         action_predictions = self.actor_local(states)
@@ -163,7 +166,6 @@ class DDPG_Agent:
 
         # soft update
         self.soft_update(self.tau)
-        self.st +=1
 
     def reset(self):
         self.noise_process.reset()
