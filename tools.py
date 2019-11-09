@@ -177,10 +177,12 @@ class PlotTool:
             self.average_line.set_xdata(np.arange(self.average.shape[0]))
             self.average_line.set_ydata(self.average)
 
-    def draw(self):
+    def draw(self, reset_for_next_time=False):
         self.axRews.relim()
         self.axRews.autoscale_view()
         self.axAve.relim()
         self.axAve.autoscale_view()
         self.fig.canvas.draw()
+        if reset_for_next_time:
+            self.initialized = False
 

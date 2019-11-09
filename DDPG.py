@@ -52,9 +52,9 @@ class DDPG_Agent:
         self.critic2_target = critic_model(state_size, action_size, seed+1)
         self.soft_update(1.0)
         self.batch_size = batch_size
-        self.replayBuffer = ReplayBuffer(batch_size=batch_size, buffer_size=500000, seed=seed, device=device)
+        self.replayBuffer = ReplayBuffer(batch_size=batch_size, buffer_size=300*1000, seed=seed, device=device)
         self.num_agents = num_agents
-        self.noise_process = OUNoise(action_size * num_agents, seed, max_sigma=0.1, min_sigma=0.01, decay_period=10000*300)
+        self.noise_process = OUNoise(action_size * num_agents, seed, max_sigma=0.1, min_sigma=0.001, decay_period=300*300)
         self.discount_factor = discount_factor
         self.actor_opt = optim.Adam(self.actor_local.parameters(), lr=actor_learning_rate)
         self.critic_opt = optim.Adam(self.critic_local.parameters(), lr=critic_learning_rate)
