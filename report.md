@@ -5,8 +5,8 @@
   - [Deep Deterministic Policy Gradients (**DDPG**)](#DDPG)  
   - [Pseudocode](#Pseudocode)
   - [Models](#Models) 
-    - [Actor or Policy](#Actor)
-    - [Critic or Q Function](#Critic)
+    - [Actor or Policy](#ActorModel)
+    - [Critic or Q Function](#CriticModel)
   - [Networks Update](#Update)
     - [Critic](#UpdateCritic)
     - [Actor](#UpdateActor)
@@ -76,7 +76,7 @@ action. Which is an approximate maximizer to calculate new target value for trai
 ### Models
 Neural Network Models are defined in [models.py](models.py)
 
-<a name="Actor"/>
+<a name="ActorModel"/>
 
 #### Actor or Policy
 Actor or Policy model consists of:
@@ -108,7 +108,7 @@ class Actor(nn.Module):
         return torch.tanh(self.fc4(x))
 ```
 
-<a name="Critic"/>
+<a name="CriticModel"/>
 
 #### Critic or Q Function
 Critic or Q Function model consists of:
