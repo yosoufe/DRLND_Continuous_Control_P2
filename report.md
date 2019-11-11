@@ -1,14 +1,40 @@
 # Report
 
+- [Introduction](#Introduction)  
+- [Learning Algorithm](#LearningAlgorithm)  
+  - [Deep Deterministic Policy Gradients (**DDPG**)](#DDPG)  
+  - [Pseudocode](#Pseudocode)
+  - [Models](#Models) 
+    - [Actor or Policy](#Actor)
+    - [Critic or Q Function](#Critic)
+  - [Networks Update](#Update)
+    - [Critic](#UpdateCritic)
+    - [Actor](#UpdateActor)
+  - [Target Networks Update or Soft Update](#SoftUpdate) 
+  - [Experience Replay or Replay Buffer](#ReplayBuffer)
+  - [Exploration](#Exploration)
+  - [Hyperparameters and Tuning](#Hyperparameters)
+- [Results](#Results)
+  - [Reward vs Epoch graph](#graph)
+  - [Videos](#Videos)
+- [Future Ideas](#FutureIdeas)
+- [References](#References)
+  
+<a name="Introduction"/>
+
 ## Introduction:
 
-The environment and the goal is introduced in main readme file [here](readme.md). 
+The environment and the goal is introduced in main readme file [here](README.md). 
 
-## Learning Algorithm:
+<a name="LearningAlgorithm"/>
+
+## Learning Algorithm
 
 Deep Deterministic Policy Gradients (**DDPG**) is used to train an RL agent to score higher in the environment.
 
-### Deep Deterministic Policy Gradients (**DDPG**):
+<a name="DDPG"/>
+
+### Deep Deterministic Policy Gradients (**DDPG**)
 
 DDPG is introduced in the paper 
 [Continuous control with deep reinforcement learning](https://arxiv.org/abs/1509.02971).
@@ -40,18 +66,24 @@ believed action for a given state. Actor is basically predicts
 is the best action. Critic learns to evaluate the optimal action-value function by using the actor's best believed 
 action. Which is an approximate maximizer to calculate new target value for training the action value function.
 
+<a name="Pseudocode"/>
+
 ### Pseudocode 
 ![Pseudocode](imgs_vids/pseudocode.png "Pseudocode taken from the paper \"Continuous control with deep reinforcement learning\"")
 
-### Models:
+<a name="Models"/>
+
+### Models
 Neural Network Models are defined in [models.py](models.py)
 
-#### Actor or Policy:
+<a name="Actor"/>
+
+#### Actor or Policy
 Actor or Policy model consists of:
 * Batch normalization layer at the state inputs. The state values can have very large and small values in different 
 dimensions which batch norm can speed up the learning. 
 * Multiple linear layers
-* tanh as last activation because we know the maximum and minimum values for actions are +1 and -1. `Tanh` outputs in 
+* `tanh` as last activation because we know the maximum and minimum values for actions are +1 and -1. `Tanh` outputs in 
 the same range which makes the learning faster. Be careful that `relu` should not be used at last layer because `relu` outputs
 only zero and positive values. I did this mistake and spent some time to find the bug.
 
@@ -76,12 +108,14 @@ class Actor(nn.Module):
         return torch.tanh(self.fc4(x))
 ```
 
-#### Critic or Q Function:
+<a name="Critic"/>
+
+#### Critic or Q Function
 Critic or Q Function model consists of:
 * Multiple linear layers
 * And no (or linear) activation at last layer.
 
-The input of model is the states and action and outputs the 
+The input of model is the states and action and it outputs the 
 <img align="middle" src="https://latex.codecogs.com/svg.latex?\Large&space;Q(s,a)"/>.
 ```python
 class Critic(nn.Module):
@@ -103,9 +137,13 @@ class Critic(nn.Module):
         return self.fc4(x)
 ```
 
-#### Networks Update:
+<a name="Update"/>
 
-##### Critic
+### Networks Update
+
+<a name="UpdateCritic"/>
+
+#### Critic
 First we calculate the target value for Q function using target critic network 
 <img align="middle" src="https://latex.codecogs.com/svg.latex?\Large&space;Q'"/> as follow
 
@@ -115,7 +153,9 @@ Then we calculate the loss
 
 <img align="middle" src="https://latex.codecogs.com/svg.latex?\Large&space;Loss=\dfrac{1}{N}\operatorname*{\Sigma}_{i}{(y_i-Q(s_i,a_i|\theta^Q))^2}"/>
 
-##### Actor
+<a name="UpdateActor"/>
+
+#### Actor
 For actor, the objective is to maximize the expected return
 
 <img src="https://latex.codecogs.com/svg.latex?\Large&space;J(\theta)=\mathbb{E}\[Q(s,a)|_{s=s_{t},a_t=\mu(s_t)}\]"/>.
@@ -124,8 +164,9 @@ We need to calculate the objective's gradient using chain rule
 
 <img src="https://latex.codecogs.com/svg.latex?\Large&space;\Delta_{\theta^{\mu}}\approx\Delta_a%20Q(s,a)\Delta_{\theta^{\mu}}\mu(s|\theta^\mu)"/>.
 
+<a name="SoftUpdate"/>
 
-#### Target Networks Update or Soft Update
+### Target Networks Update or Soft Update
 It is similar to deep Q-learning method:
 
 <img src="https://latex.codecogs.com/svg.latex?\Large&space;\theta^{Q'}\leftarrow\tau\theta^{Q}+(1-\tau)\theta^{Q'}"/>
@@ -141,17 +182,23 @@ def soft_update(self, tau):
         target_param.data.copy_(tau * local_param.data + (1.0 - tau) * target_param.data)
 ```
 
-#### Experience Replay or Replay Buffer:
+<a name="ReplayBuffer"/>
+
+### Experience Replay or Replay Buffer
 Learning on single sample is usually ending up having a very high variance. Therefore it is essential to 
 have a buffer to save the experiments. Then on each step random samples are drawn from the buffer and 
 the network is trained on them. This is like we are replaying the old experience. This is very similar to 
 deep Q-learning.
 
-#### Exploration
+<a name="Exploration"/>
+
+### Exploration
 We are using [Ornstein–Uhlenbeck process](https://en.wikipedia.org/wiki/Ornstein%E2%80%93Uhlenbeck_process)
 added to actions. We are decreasing noise further more in learning.
 
-### Hyperparameters and Tuning:
+<a name="Hyperparameters"/>
+
+### Hyperparameters and Tuning
 I found DDPG very sensitive to hyper parameters. If the parameters were not chosen correctly
 the output of the actor saturates to the extremes very early in the training and comes out of that 
 local optima rarely. The corect hyperparameters are also depending on the networks and its complexity.
@@ -176,14 +223,22 @@ I used two critic networks with the same architecture but different initial para
 and used the average of their output as the target value for critics network. This gave a bit
 more stable convergence.
 
-## Result:
+<a name="Results"/>
 
+## Results
+
+<a name="graph"/>
+
+### Reward vs Epoch graph
 In the following image, the top graph is showing the rewards of each agent and the second 
 graph is showing the average over all agents. I set the criteria to consider the environment as 
 solve to average rewards of **35** and this is achieved in **140 epochs**
 
 <img src="imgs_vids/Rewards.png" alt="drawing" height="900"/>
 
+<a name="Videos"/>
+
+### Videos
 Here are some videos of my trained agent:
 * with live cumulative rewards: https://youtu.be/ZCwCc8ClnbA
 * without cumulative rewards: https://youtu.be/K_hSIYBih-c
@@ -194,11 +249,15 @@ Youtube, Or may check the `imgs_vids` folder of the repo:
 [![Trained Agent](imgs_vids/ddpg_with_rewards.gif "My Trained Agent, Click for Youtube Video")](https://youtu.be/ZCwCc8ClnbA)
 [![Trained Agent](imgs_vids/ddpg_full_screen.gif "My Trained Agent, Click for Youtube Video")](https://youtu.be/K_hSIYBih-c)
 
-## Future Ideas:
+<a name="FutureIdeas"/>
+
+# Future Ideas
 * Using different algorithm like PPO, A2C, A3C or TD3.
 * Using different network models like recurrent networks.
 
-# Refereces
+<a name="References"/>
+
+# References
 * [Continuous control with deep reinforcement learning](https://arxiv.org/abs/1509.02971)
 * [Deep Deterministic Policy Gradient, OpenAI Spinning Up](https://spinningup.openai.com/en/latest/algorithms/ddpg.html)
 * [Deep Deterministic Policy Gradients Explained, Medium Article](https://towardsdatascience.com/deep-deterministic-policy-gradients-explained-2d94655a9b7b)
