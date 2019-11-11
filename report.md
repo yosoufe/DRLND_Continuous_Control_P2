@@ -169,9 +169,8 @@ We need to calculate the objective's gradient using chain rule
 ### Target Networks Update or Soft Update
 It is similar to deep Q-learning method:
 
-<img src="https://latex.codecogs.com/svg.latex?\Large&space;\theta^{Q'}\leftarrow\tau\theta^{Q}+(1-\tau)\theta^{Q'}"/>
-
-<img src="https://latex.codecogs.com/svg.latex?\Large&space;\theta^{\mu'}\leftarrow\tau\theta^{\mu}+(1-\tau)\theta^{\mu'}"/>
+* <img src="https://latex.codecogs.com/svg.latex?\Large&space;\theta^{Q'}\leftarrow\tau\theta^{Q}+(1-\tau)\theta^{Q'}"/>
+* <img src="https://latex.codecogs.com/svg.latex?\Large&space;\theta^{\mu'}\leftarrow\tau\theta^{\mu}+(1-\tau)\theta^{\mu'}"/>
 
 where <img src="https://latex.codecogs.com/svg.latex?\Large&space;\tau<<1"/>.
 ```python
